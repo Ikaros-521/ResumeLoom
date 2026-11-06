@@ -1,0 +1,45 @@
+schema_version: 1
+artifact_id: audit
+version: audit-v1
+snapshot_files:
+  - {live: facts.yaml, snapshot: audit-inputs/audit-v1/facts.yaml}
+  - {live: jd.md, snapshot: audit-inputs/audit-v1/jd.md}
+  - {live: requirements.yaml, snapshot: audit-inputs/audit-v1/requirements.yaml}
+  - {live: resume-humanized.md, snapshot: audit-inputs/audit-v1/resume-humanized.md}
+  - {live: humanized.meta.yaml, snapshot: audit-inputs/audit-v1/humanized.meta.yaml}
+inputs:
+  facts: {artifact_id: facts, revision: 1}
+  jd: {path: jd.md, version: jd-v1}
+  requirements: {path: requirements.yaml, version: requirements-v1}
+  resume: {path: resume-humanized.md, version: humanized-v1}
+  meta: {path: humanized.meta.yaml, version: humanized-v1}
+  attachment: null
+fact_gate:
+  status: pass
+  checked_claim_ids: [C-001, C-002, C-003, C-004]
+  findings: []
+ats:
+  status: warning
+  method: manual_rules
+  keyword_coverage:
+    - {requirement_id: R-001, status: supported, evidence: '正文包含Python；F-003'}
+    - {requirement_id: R-002, status: partial, evidence: '正文仅有慢SQL排查，不声称优化结果；F-004'}
+    - {requirement_id: R-003, status: gap, evidence: '正文不含Kubernetes技能，已知无经验；F-005'}
+  structure:
+    status: pass
+    evidence: Markdown 单栏，姓名、专业技能和工作经历标题明确。
+  file_parse:
+    status: unverified
+    evidence: 未提供实际 PDF/DOCX 附件，也未执行文本提取或目标 ATS 测试。
+  findings:
+    - 联系方式未提供，真实申请前需补充。
+expression:
+  status: pass
+  findings: []
+  note: 中立简洁，保留参与范围；该结论不判断文本作者身份。
+blocking_issues: []
+warnings:
+  - SQL优化要求仅部分有据，Kubernetes为明确缺口。
+  - 本报告只对所列文本版本生效；不能用于放行未审查附件。
+next_action: user_review
+eligible_for: text_preparation

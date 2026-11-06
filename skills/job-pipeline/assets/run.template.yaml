@@ -1,0 +1,15 @@
+schema_version: 1
+run_id: null
+status: in_progress # in_progress | waiting_user | blocked | completed
+current_stage: dig
+repair_rounds: 0
+max_repair_rounds: 2
+artifacts: {} # 每项实际path与revision/version；草稿还记录meta路径
+stages:
+  dig: pending
+  tailor: pending
+  humanize: pending
+  audit: pending
+  apply: pending
+history: [] # 每项记录stage、输入输出版本、变更或停止原因
+next_action: null

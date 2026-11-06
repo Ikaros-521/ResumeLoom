@@ -1,0 +1,55 @@
+schema_version: 1
+artifact_id: application
+version: application-v1
+mode: offline
+status: prepared_offline
+job:
+  url: https://example.com/jobs/backend-001
+  title: Python 后端工程师（虚构）
+  source: jd.md 中的虚构表单转录；未访问网页
+inputs:
+  facts: {artifact_id: facts, revision: 1}
+  jd: {path: jd.md, version: jd-v1}
+  resume: {path: resume-humanized.md, version: humanized-v1}
+  audit: {path: audit.yaml, version: audit-v1}
+  attachment: null
+user_review:
+  resume_version: humanized-v1
+  confirmed: true
+  evidence: input.md 中虚构的定稿确认，仅用于演示。
+upload_authorization: null
+fields:
+  - label: 姓名
+    value: 林舟
+    fact_ids: [F-001]
+    state: prepared
+    evidence: 仅离线清单，未录入页面。
+  - label: Kubernetes 使用年限
+    value: '0'
+    fact_ids: [F-005]
+    state: prepared
+    evidence: 用户确认无经验；仅准备答案。
+  - label: 期望薪资
+    value: null
+    fact_ids: []
+    state: needs_user
+    evidence: 用户未提供期望薪资。
+  - label: 工作许可声明
+    value: null
+    fact_ids: []
+    state: needs_user
+    evidence: 缺少声明原文及用户确认；不得代签或猜测。
+  - label: 简历附件
+    value: null
+    fact_ids: []
+    state: needs_user
+    evidence: 未提供实际附件及格式要求，未取得上传授权。
+unresolved:
+  - 提供薪资偏好。
+  - 用户查看并处理工作许可声明。
+  - 准备实际附件并重新审查，再确认是否上传。
+stop_reason: 无浏览器，仅完成离线清单；不进行提交。
+submission:
+  performed_by: null
+  confirmed_at: null
+  evidence: null

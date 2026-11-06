@@ -1,0 +1,32 @@
+schema_version: 1
+artifact_id: audit
+version: audit-v1
+snapshot_files: [] # 每项 {live: "当前输入路径", snapshot: "audit-inputs/audit-v1/文件名"}
+inputs:
+  facts: {artifact_id: facts, revision: 1}
+  jd: {path: jd.md, version: jd-v1}
+  requirements: {path: requirements.yaml, version: requirements-v1}
+  resume: {path: resume-humanized.md, version: humanized-v1}
+  meta: {path: humanized.meta.yaml, version: humanized-v1}
+  attachment: null # 有文件时记录 {path, version}；不可凭文件名断言内容一致
+fact_gate:
+  status: unverified # pass | blocked | unverified
+  checked_claim_ids: []
+  findings: []
+ats:
+  status: unverified # pass | warning | blocked | unverified
+  method: manual_rules
+  keyword_coverage: [] # 每项 {requirement_id, status, evidence}
+  structure: {status: unverified, evidence: null}
+  file_parse:
+    status: unverified # pass | fail | unverified
+    evidence: null # 实际文件、工具、提取完整性及阅读顺序；无工具就写原因
+  findings: []
+expression:
+  status: unverified # pass | warning | blocked | unverified
+  findings: [] # 每项 {claim_id, quote, suggestion, reason}
+  note: 不判断作者身份或AI生成概率。
+blocking_issues: [] # 每项 {id, claim_id, issue, route}；非句子问题claim_id可为null
+warnings: []
+next_action: null # dig | tailor | humanize | repair_export | user_review
+eligible_for: none # none | text_preparation | attachment_preparation

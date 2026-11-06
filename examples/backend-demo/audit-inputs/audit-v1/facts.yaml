@@ -1,0 +1,95 @@
+schema_version: 1
+artifact_id: facts
+revision: 1
+status: partial
+candidate_id: demo-lin
+sources:
+  - id: S-001
+    kind: user_statement
+    locator: input.md 用户自述
+    excerpt: "我叫林舟。2023年7月至2025年6月在示例科技任后端工程师，参与团队订单服务改造。我使用 Python、FastAPI、PostgreSQL，负责慢 SQL 排查。我没有 Kubernetes 经验。"
+    recorded_at: '2026-11-06'
+  - id: S-002
+    kind: old_resume
+    locator: input.md 旧简历摘录
+    excerpt: "订单服务延迟降低40%。"
+    recorded_at: null
+  - id: S-003
+    kind: user_statement
+    locator: input.md 用户补充
+    excerpt: "40%这个数字记不清了，没有测量记录，先别放进去。"
+    recorded_at: '2026-11-06'
+facts:
+  - id: F-001
+    statement: 林舟
+    category: identity
+    status: confirmed
+    source_ids: [S-001]
+    evidence_quote: 我叫林舟。
+    verification_basis: user_statement
+    period: {start: null, end: null}
+    scope: not_applicable
+    metric: null
+    supersedes: []
+  - id: F-002
+    statement: 2023.07—2025.06 在示例科技任后端工程师
+    category: experience
+    status: confirmed
+    source_ids: [S-001]
+    evidence_quote: 2023年7月至2025年6月在示例科技任后端工程师
+    verification_basis: user_statement
+    period: {start: '2023-07', end: '2025-06'}
+    scope: individual
+    metric: null
+    supersedes: []
+  - id: F-003
+    statement: 使用 Python、FastAPI、PostgreSQL
+    category: skill
+    status: confirmed
+    source_ids: [S-001]
+    evidence_quote: 我使用 Python、FastAPI、PostgreSQL
+    verification_basis: user_statement
+    period: {start: null, end: null}
+    scope: individual
+    metric: null
+    supersedes: []
+  - id: F-004
+    statement: 参与团队订单服务改造，个人负责慢 SQL 排查
+    category: experience
+    status: confirmed
+    source_ids: [S-001]
+    evidence_quote: 参与团队订单服务改造。我使用 Python、FastAPI、PostgreSQL，负责慢 SQL 排查。
+    verification_basis: user_statement
+    period: {start: '2023-07', end: '2025-06'}
+    scope: individual
+    metric: null
+    supersedes: []
+  - id: F-005
+    statement: 没有 Kubernetes 经验
+    category: skill
+    status: confirmed
+    source_ids: [S-001]
+    evidence_quote: 我没有 Kubernetes 经验。
+    verification_basis: user_statement
+    period: {start: null, end: null}
+    scope: individual
+    metric: null
+    supersedes: []
+  - id: F-006
+    statement: 订单服务延迟降低40%
+    category: experience
+    status: disputed
+    source_ids: [S-002, S-003]
+    evidence_quote: "旧简历写40%；用户补充数字记不清，没有测量记录，先别放进去。"
+    verification_basis: conflicting_sources
+    period: {start: null, end: null}
+    scope: team
+    metric: {value: '40%', baseline: null, method: null, period: null}
+    supersedes: []
+open_questions:
+  - id: Q-001
+    fact_ids: [F-006]
+    question: 是否有可追溯的测量记录？本轮先排除该数字，不阻塞其余事实使用。
+change_log:
+  - revision: 1
+    note: 初始整理；40%按用户更正标记 disputed。

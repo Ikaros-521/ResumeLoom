@@ -1,0 +1,29 @@
+schema_version: 1
+artifact_id: application
+version: application-v1
+mode: offline # offline | browser
+status: waiting_user # prepared_offline | waiting_user | blocked | ready_for_review | submitted
+job: {url: null, title: null, source: null}
+inputs:
+  facts: {artifact_id: facts, revision: 1}
+  jd: {path: jd.md, version: jd-v1}
+  resume: {path: resume-humanized.md, version: humanized-v1}
+  audit: {path: audit.yaml, version: audit-v1}
+  attachment: null
+user_review:
+  resume_version: null
+  confirmed: false
+  evidence: null
+upload_authorization: null # 有授权时记录平台、文件版本及用户原话位置
+fields: []
+# - label: "实际字段名称"
+#   value: null
+#   fact_ids: []
+#   state: needs_user # prepared | filled | needs_user
+#   evidence: "来源；filled 需有页面观察依据"
+unresolved: []
+stop_reason: null
+submission:
+  performed_by: null # submitted时必须为user
+  confirmed_at: null
+  evidence: null # 用户确认或实际回执；不要保存不必要的敏感内容

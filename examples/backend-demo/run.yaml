@@ -1,0 +1,42 @@
+schema_version: 1
+run_id: demo-backend-001
+status: waiting_user
+current_stage: apply
+repair_rounds: 0
+max_repair_rounds: 2
+artifacts:
+  facts: {path: facts.yaml, revision: 1}
+  jd: {path: jd.md, version: jd-v1}
+  requirements: {path: requirements.yaml, version: requirements-v1}
+  draft: {path: resume-draft.md, meta: draft.meta.yaml, version: draft-v1}
+  humanized: {path: resume-humanized.md, meta: humanized.meta.yaml, version: humanized-v1}
+  audit: {path: audit.yaml, version: audit-v1}
+  application: {path: application.yaml, version: application-v1}
+stages:
+  dig: completed
+  tailor: completed
+  humanize: completed
+  audit: completed
+  apply: waiting_user
+history:
+  - stage: dig
+    inputs: [input.md]
+    outputs: ['facts@1']
+    note: 保留争议数字，使用已确认事实子集继续。
+  - stage: tailor
+    inputs: ['facts@1', jd-v1]
+    outputs: [requirements-v1, draft-v1]
+    note: SQL部分支持；Kubernetes缺口不伪造。
+  - stage: humanize
+    inputs: ['facts@1', jd-v1, requirements-v1, draft-v1]
+    outputs: [humanized-v1]
+    note: 精简表达，语义未变。
+  - stage: audit
+    inputs: ['facts@1', jd-v1, requirements-v1, humanized-v1]
+    outputs: [audit-v1]
+    note: 文本可供准备；实际附件解析未验证。
+  - stage: apply
+    inputs: ['facts@1', jd-v1, humanized-v1, audit-v1]
+    outputs: [application-v1]
+    note: 虚构用户确认当前正文；无浏览器，完成离线清单；从未提交。
+next_action: 用户处理薪资、声明及实际附件后，可续跑准备；提交始终由用户手动完成。

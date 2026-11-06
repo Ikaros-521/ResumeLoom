@@ -1,0 +1,31 @@
+# 复制后填入真实材料；空列表与 null 表示未知，不能用样例经历填充。
+schema_version: 1
+artifact_id: facts
+revision: 1
+status: partial # partial | ready；ready 表示本轮问题已解决或明确搁置
+candidate_id: null # 使用代号作为目录名
+sources: []
+# - id: S-001
+#   kind: user_statement # user_statement | old_resume | document
+#   locator: "文件名+章节，或消息日期+可定位摘录"
+#   excerpt: "原文"
+#   recorded_at: null
+facts: []
+# - id: F-001
+#   statement: "一个可独立核验的陈述"
+#   category: experience # identity | experience | skill | education | preference
+#   status: confirmed # confirmed | unconfirmed | disputed | inferred
+#   source_ids: [S-001]
+#   evidence_quote: "支持该陈述的原文"
+#   verification_basis: user_statement # 不等于外部验证
+#   period: {start: null, end: null}
+#   scope: individual # individual | team | not_applicable
+#   metric: null # 如有：{value: "40%", baseline: "原值", method: "测量方式", period: "区间"}
+#   supersedes: [] # 更正的事实 ID；保留旧事实，不复用 ID
+open_questions: []
+# - id: Q-001
+#   fact_ids: [F-001]
+#   question: "需要确认什么？"
+change_log: []
+# - revision: 1
+#   note: "本次变更及其来源"

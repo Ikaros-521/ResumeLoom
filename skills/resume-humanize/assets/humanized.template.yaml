@@ -1,0 +1,25 @@
+schema_version: 1
+artifact_id: humanized
+version: humanized-v1
+resume_path: resume-humanized.md
+status: ready # ready | needs_facts
+inputs:
+  facts: {artifact_id: facts, revision: 1}
+  jd: null # 提供且核对后填 {path: jd.md, version: 实际版本}
+  requirements: null # 提供且核对后填 {path: requirements.yaml, version: 实际版本}
+  draft: {path: resume-draft.md, version: draft-v1}
+claims: []
+# - id: C-001
+#   location: "工作经历/第一条"
+#   text: "与新正文完全一致的事实陈述"
+#   fact_ids: [F-001]
+changes: []
+# - claim_id: C-001
+#   before: "原句"
+#   after: "新句"
+#   reason: "改写理由；拆分/合并时记录旧 ID"
+fact_issues: []
+# - claim_id: C-001
+#   issue: "具体的事实缺口"
+#   route: dig # dig | tailor
+open_questions: []

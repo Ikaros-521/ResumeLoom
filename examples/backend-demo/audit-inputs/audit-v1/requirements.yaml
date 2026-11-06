@@ -1,0 +1,28 @@
+schema_version: 1
+artifact_id: requirements
+version: requirements-v1
+inputs:
+  facts: {artifact_id: facts, revision: 1}
+  jd: {path: jd.md, version: jd-v1}
+requirements:
+  - id: R-001
+    quote: Python 开发经验
+    priority: required
+    keywords: [Python]
+    coverage: supported
+    fact_ids: [F-003]
+    reason: 用户确认在工作中使用 Python。
+  - id: R-002
+    quote: SQL 性能优化相关经验
+    priority: required
+    keywords: [SQL, 性能优化]
+    coverage: partial
+    fact_ids: [F-004]
+    reason: 有慢 SQL 排查经历，尚无已确认的优化实施过程或测量结果。
+  - id: R-003
+    quote: Kubernetes 使用经验
+    priority: preferred
+    keywords: [Kubernetes]
+    coverage: gap
+    fact_ids: [F-005]
+    reason: 用户明确无经验；该事实解释缺口，不能作为满足要求的证据。
