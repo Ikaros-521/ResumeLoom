@@ -1,3 +1,0 @@
-# Optional CPU embeddings. Model files must already be cached locally.
-sentence-transformers>=3,<6
-numpy>=1.26,<3

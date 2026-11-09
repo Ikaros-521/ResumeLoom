@@ -53,4 +53,4 @@
 
 本仓库按 [MIT License](LICENSE) 发布，Copyright (c) 2026 Ikaros-521。
 
-`jobscope/` 目录另有独立仓库 [Ikaros-521/JobScope](https://github.com/Ikaros-521/JobScope)，那份副本采用 AGPLv3 与商业授权的双重许可，条款以该仓库的 `LICENSE` 为准。
+JobScope 岗位情报工作台不在本仓库内，作为独立仓库发布在 [Ikaros-521/JobScope](https://github.com/Ikaros-521/JobScope)，采用 AGPLv3 与商业授权的双重许可，条款以该仓库的 `LICENSE` 为准。本仓库的 `docs/` 保留它的设计方案与验证记录。

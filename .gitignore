@@ -1,12 +1,8 @@
 # 真实候选人资料与岗位申请记录只留在本地。
 /runs/
 /.local/
-# JobScope 独立应用的运行数据、依赖及构建产物。
-jobscope/.data/
-jobscope/.venv/
-jobscope/frontend/node_modules/
-jobscope/frontend/dist/
-jobscope/output/
+# JobScope 已拆到独立仓库 https://github.com/Ikaros-521/JobScope ，本仓库不跟踪该目录（勿上传）。
+jobscope/
 __pycache__/
 .pytest_cache/
 *.pyc
