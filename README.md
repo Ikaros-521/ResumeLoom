@@ -48,3 +48,9 @@
 [实施计划](docs/implementation-plan.md)、[行为场景](docs/validation-scenarios.md) 和 [实际验证记录](docs/validation-results.md) 说明交付范围与验证边界。
 
 本版本按对话中的职责划分独立编写，没有复制或打包第三方 Skill、代码或规则集，也不声称实现某个开源项目的完整算法。候选开源项目的能力与许可证尚未核验。
+
+## 开源协议
+
+本仓库按 [MIT License](LICENSE) 发布，Copyright (c) 2026 Ikaros-521。
+
+`jobscope/` 目录另有独立仓库 [Ikaros-521/JobScope](https://github.com/Ikaros-521/JobScope)，那份副本采用 AGPLv3 与商业授权的双重许可，条款以该仓库的 `LICENSE` 为准。
