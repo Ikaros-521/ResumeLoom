@@ -11,6 +11,7 @@
 | requirements.yaml | tailor；独立 audit 可补建 | humanize、audit |
 | resume-draft.md + draft.meta.yaml | tailor | humanize |
 | resume-humanized.md + humanized.meta.yaml | humanize | audit、apply |
+| output/html/*.html + output/pdf/*.pdf + export-manifest.json（按需） | 宿主导出步骤 | audit、apply、用户修改排版 |
 | audit.yaml + audit-inputs/报告版本/ | audit | apply、恢复检查 |
 | application.yaml | apply | 用户检查及提交记录 |
 | run.yaml | job-pipeline | 恢复与依赖检查 |
@@ -26,6 +27,8 @@
 audit 将实际审查的每项输入保存到 `audit-inputs/<报告版本>/` 并记录 live/snapshot 对照。恢复时先读当前文件，再与报告快照逐项比较。对 Markdown/YAML 比完整文本，对二进制附件比较完整内容或宿主实际计算的摘要；不要捏造哈希。没有文件工具时不能声称快照已保存或相等。
 
 快照不是防篡改签名；用户若同时修改快照，则需要重新审查。它用于发现日常手改内容却未更新版本的情况，不提供密码学完整性保证。
+
+正式附件导出时，`export-manifest.json` 记录正文版本与实际计算的摘要、HTML/PDF 路径和版本、导出工具、实际页数、文字提取与逐页视觉检查结果；未执行的检查明确标为未验证。可在 `run.artifacts.export` 引用该清单，并在 history 记录导出及附件复查。正文只因内容变化而升版，样式变化更新 HTML/PDF 及导出版本。audit 保存当前实际附件快照；apply 比较的附件须与审查文件一致。历史文件先归档，真实个人资料留在本地运行目录，不写进公开模板或代码。
 
 ## 失效规则
 

@@ -2,6 +2,8 @@
 
 用事实档案串起求职准备的纯 Skill 套件。以中文简历为主，也可按用户要求输出其他语言。
 
+另有独立本地应用 **[知根 JobScope](jobscope/README.md)**：岗位采集、公司资料、简历适配与带出处的资料问答。其应用依赖和运行数据与下述纯 Skill 套件分开管理。
+
 `dig → tailor → humanize → audit → apply`
 
 第一版只有 Markdown 指令和 YAML/Markdown 模板。不绑定模型提供商，没有 Web 应用、运行时代码、算法评分器或浏览器驱动。执行效果依赖宿主模型及其文件、网页工具。
@@ -51,4 +53,4 @@
 
 本仓库按 [MIT License](LICENSE) 发布，Copyright (c) 2026 Ikaros-521。
 
-JobScope 岗位情报工作台是另一个仓库，见 [Ikaros-521/JobScope](https://github.com/Ikaros-521/JobScope)，那边采用 AGPLv3 与商业授权的双重许可，条款以其 `LICENSE` 为准。
+JobScope 岗位情报工作台不在本仓库内，作为独立仓库发布在 [Ikaros-521/JobScope](https://github.com/Ikaros-521/JobScope)，采用 AGPLv3 与商业授权的双重许可，条款以该仓库的 `LICENSE` 为准。本仓库的 `docs/` 保留它的设计方案与验证记录。
