@@ -195,6 +195,20 @@ npm run build                                          # tsc -b + vite build 通
 
 回归：相关测试 49 passed；BOSS 渠道实跑（验证解除后）直接 completed 读到 5 条——验证态已由用户在项目 Chrome 人工解除，激活逻辑待下次遇到验证页时自然生效。
 
+## 2026-11-11 补充：对话停止改为即时应答+协作中断+迟到丢弃
+
+用户反馈岗位研究对话页发送后按"停止"极慢。根因三层：research 模式整条流水线（索引同步→规划 LLM→embedding/检索→综合 LLM，最坏约 2 分钟）**没有任何取消检查点**，取消只能跑完全程后丢结果；general 模式只在轮间/工具间检查、流式 LLM 调用中不可中断；前端停止后完全等 SSE `cancelled` 事件才复位 UI。三个对话页（全局/岗位/公司）共用 ChatWorkspace+useChatRun，一处修复全覆盖。
+
+重构为三层取消契约（JobScope `e261021`）：
+
+- **L0 即时应答**：`cancel()` 持 `handle.condition`（RLock）原子执行 set 标志→push `cancelled`→`closed=True`→`finish()`，毫秒级返回；会话锁即刻释放可发新消息。幂等：已 done 的 run 取消为 no-op；与 `_settle` 的落库竞争由同一把锁裁决，不存在"停止后冒出答案"的中间态。
+- **L1 协作中断**：`ResearchAgent.answer` 新增 `should_stop` 参数，5 个检查点（入口/同步后/规划后/检索后/恢复检索前）命中抛 `RunCancelled`；`stream_turn` chunk 循环内轮询停止标志，流式模型调用可中途断流停止烧 token。
+- **L2 有界丢弃**：打断不了的调用（非流式 complete≤60s、MCP≤35s、embedding≤20s、SQLite busy≤15s）本就有超时上界；返回后下一个检查点退出。`RunHandle.closed` 封口：僵尸线程一切 push 丢弃、`_settle` 不落库——停止后迟到结果永不出现。
+
+前端 `stop()` 改乐观收尾：cancel POST 成功立即关流、复位 UI、重载会话；SSE `cancelled` 处理器保留兜底跨标签页场景。行为变化：general 模式停止不再落库部分答案（原 interrupted 标记），与研究模式统一为纯丢弃，符合"中途任务打断丢弃"的要求。
+
+验证：test_chat_runs 重写取消组并新增 4 例（阻塞步骤中取消即时生效+日志封口、检查点抛 RunCancelled、自然完成后取消 no-op、取消后会话立即可续）共 13 passed；全量 506 passed；`npm run build` 通过；8765 实例实测 cancel 立即返回 `done:true, cancelled:true`（旧代码 `done:false`）。测试新增 `join_worker` 辅助：即时取消会留下活到检查点的僵尸线程，必须 join 否则吞掉后续测试 monkeypatch 的假模型流（曾致相邻测试假失败）。
+
 ## 边界与未测
 
 - 大批量（几百条）的真实删除只在单测里跑过（HTTP 层 1000 条上限校验），真实档案上的多量大删由用户自行操作，路径与自测相同。
