@@ -209,6 +209,12 @@ npm run build                                          # tsc -b + vite build 通
 
 验证：test_chat_runs 重写取消组并新增 4 例（阻塞步骤中取消即时生效+日志封口、检查点抛 RunCancelled、自然完成后取消 no-op、取消后会话立即可续）共 13 passed；全量 506 passed；`npm run build` 通过；8765 实例实测 cancel 立即返回 `done:true, cancelled:true`（旧代码 `done:false`）。测试新增 `join_worker` 辅助：即时取消会留下活到检查点的僵尸线程，必须 join 否则吞掉后续测试 monkeypatch 的假模型流（曾致相邻测试假失败）。
 
+## 2026-11-11 补充：岗位/公司范围下口语泛问召回本公司证据
+
+用户在岗位对话页问"这是个什么公司"答"没有找到证据"，而左栏公司情报里明明有 boss 公司自述。根因：`plan.terms()` 对纯口语泛问切出的 2-gram 几乎全在 STOP 表（"什么""公司"都是停用词），FTS MATCH 零实词可查；未配 embedding 时 dense 通道跳过，recovery 用原问题复查同样零命中——**窄 scope 下口语泛问 BM25 完全失效**。修复（JobScope `8b1bf8d`）：`retrieve()` 在 scope（job/company）模式下把公司名 token 注入检索词——SQL 层 `d.company=?` 已把候选限定在本公司，公司名是绝对可靠的召回信号；相关性 40% 门槛仍按原始查询词计算，公司名命中直接放行（注入只扩召回不抬门槛）；global 范围行为不变（无意义查询仍零命中走澄清引导）。
+
+验证：真实库复现"这是个什么公司"从 0 证据 → 2 条（boss 自述排首位 + 岗位 JD）；8765 重启后端到端走真实岗位 scope，回答 mode=model，引用 boss 自述给出规模/成立年份/业务板块且如实标注"公司自述未经独立核验"；新增 test_colloquial_prompt_recalls_company_scope_evidence（短/长垃圾泛问两条路径 + global 零命中回归），全量 507 passed；探针会话已清理。
+
 ## 边界与未测
 
 - 大批量（几百条）的真实删除只在单测里跑过（HTTP 层 1000 条上限校验），真实档案上的多量大删由用户自行操作，路径与自测相同。
