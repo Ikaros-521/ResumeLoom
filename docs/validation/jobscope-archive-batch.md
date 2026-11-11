@@ -221,6 +221,15 @@ npm run build                                          # tsc -b + vite build 通
 
 处置：`POST /api/research/index {"operation":"embed"}` 增量重建 2303 条 bge-m3 向量（330s）。验证："这是个什么公司"从 strategy=bm25 升级为 **hybrid**，boss 自述双通道 `['bm25','dense']` 命中；正常关键词查询同样 hybrid，degraded 清空。BM25 公司名注入（上一条）+ dense 语义召回形成双保险。改进留待后续：换模型时主动提示重建向量缓存（2303 条 × batch24 同步跑 5.5 分钟太重，适合后台任务或首次检索时惰性触发）。
 
+## 2026-11-11 补充：研究模式回答流式输出 + 工具步骤执行详情抽屉
+
+用户要求对话支持流式输出、工具执行内容可折叠查看。研究模式（岗位/公司对话默认）综合回答原本走非流式 `complete()`，要干等 30-60 秒一次性出答案。改造（JobScope `276944b`）：
+
+- **流式**：`model_transport` 新增 `stream_complete`（openai/anthropic 双协议，逐 delta 回调，finish_reason/截断语义对齐 complete）；`answer_question` 加 `on_delta`——模型输出是 JSON 包裹，实现 `_AnswerExtractor` 字符级状态机增量提取 `"answer"` 值（`\"`/`\\`/`\n`/`\uXXXX` 转义、``` 围栏前缀、key 跨 chunk 切断的 32 字符尾窗），反转义增量实时推送；**流式内容仅是预览**，最终答案仍以完整 `json.loads` + 引用一致性校验为准，校验失败照旧走证据摘录降级（流式预览被落库答案替换）。链路 `chat_runs → ResearchAgent.answer → synthesizer(on_delta)` 推 `delta` SSE 事件，前端既有 delta→run.answer→Markdown 渲染路径零改动直接生效。`on_delta=None` 时走原 `complete()` 路径，既有测试零破坏。
+- **抽屉**：ToolTimeline 步骤展开体增强——研究步骤 payload 无 `arguments`/`result_preview`（数据平铺为 plan/strategy/terms/candidates/degraded），改为无参数时用现成 `readable()` 把除结构字段外的全部字段渲染为"执行详情"；历史消息 trace 与实时 run 共用渲染。api.ts `ResearchRun.events` 对齐 `ToolStep[]` 修掉 TS 缺口。
+
+验证：新增 `_AnswerExtractor` 单测（转义/\uXXX/围栏/分块、evidence_ids 不外泄、校验失败预览不落库）与 research run 流式集成测试（SSE 含 delta、done 答案完整）；全量 510 passed；`npm run build` 过；8765 重启后真实岗位 scope 端到端：start → 4 step → **326 个 delta 逐字流出** → done，引用正确，探针会话已清理。测试坑：patch `httpx.Client.post` 会连累 TestClient 自身（需 isinstance 放行 original，且须在 patch 前存 original 防递归）。
+
 ## 边界与未测
 
 - 大批量（几百条）的真实删除只在单测里跑过（HTTP 层 1000 条上限校验），真实档案上的多量大删由用户自行操作，路径与自测相同。
