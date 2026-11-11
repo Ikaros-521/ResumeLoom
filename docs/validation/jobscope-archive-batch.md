@@ -215,6 +215,12 @@ npm run build                                          # tsc -b + vite build 通
 
 验证：真实库复现"这是个什么公司"从 0 证据 → 2 条（boss 自述排首位 + 岗位 JD）；8765 重启后端到端走真实岗位 scope，回答 mode=model，引用 boss 自述给出规模/成立年份/业务板块且如实标注"公司自述未经独立核验"；新增 test_colloquial_prompt_recalls_company_scope_evidence（短/长垃圾泛问两条路径 + global 零命中回归），全量 507 passed；探针会话已清理。
 
+## 2026-11-11 补充：向量缓存随换模型静默失效，重建后 dense 通道打通
+
+用户纠正：embedding 一直配着（remote bge-m3 @127.0.0.1:3425）。重查证实服务端 `embedding_configured=true`——上一条"未配 embedding"是我从检索耗时 141ms 的错误推断，实际是 dense 通道**静默空转**：向量缓存 580 条全是旧本地模型 `local:BAAI/bge-small-zh-v1.5` 时代构建的，换成远端 bge-m3 后 identity 变化，检索按新指纹 JOIN `research_vectors` 恒为 0 行 → dense 降级，"向量索引尚未建立"提示只存在于 trace 的 degraded 里，界面不可见——换模型导致向量缓存过期没有任何主动暴露。另一个教训：探针脚本测 `EmbeddingProvider.configured` 必须套 `use_config(ModelSettings(repo).effective())` 上下文（worker 线程的真实环境），否则读到默认 disabled，得出伪象结论。
+
+处置：`POST /api/research/index {"operation":"embed"}` 增量重建 2303 条 bge-m3 向量（330s）。验证："这是个什么公司"从 strategy=bm25 升级为 **hybrid**，boss 自述双通道 `['bm25','dense']` 命中；正常关键词查询同样 hybrid，degraded 清空。BM25 公司名注入（上一条）+ dense 语义召回形成双保险。改进留待后续：换模型时主动提示重建向量缓存（2303 条 × batch24 同步跑 5.5 分钟太重，适合后台任务或首次检索时惰性触发）。
+
 ## 边界与未测
 
 - 大批量（几百条）的真实删除只在单测里跑过（HTTP 层 1000 条上限校验），真实档案上的多量大删由用户自行操作，路径与自测相同。
