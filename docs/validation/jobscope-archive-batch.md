@@ -431,3 +431,26 @@ npm run build                                          # 通过
 ```
 - 真实 E2E（8765 + @playwright/mcp browser_tabs）：自主档发起调用 → 审批卡三按钮、reason 为 destructive 文案 → 点「本会话始终允许」→ 授权落库 → 同会话再调同工具时间线直接 completed、无 waiting 步骤。
 - 发布仓库 `acf400c` 经 `feat/session-tool-grants` 合入 `3dd648b` 已推送。
+
+## 2026-11-12 补充：MCP 常驻会话池（修有状态服务被逐次冷启动拆散）
+
+用户实测 @playwright/mcp 多步搜索：第一次 navigate 打开的有头浏览器随即被关，后续 snapshot 读到空白页、反复重导航无效。诊断正确：不是授权逻辑关的——`MCPClient._request` 每次调用新建 `AsyncExitStack` 后销毁，stdio 子进程（连带它管理的浏览器）随调用结束退出，每次调用都是全新会话，多步操作天然无法串接。这问题一直存在，只是授权流让用户开始真实串接使用后暴露。
+
+### 实现
+
+- `MCPSessionPool` + `_MCPSession`（extensions.py）：按 `fingerprint(config)` 缓存常驻会话——每个会话一条 daemon 线程 + 常驻 asyncio 事件循环 + 长命 `AsyncExitStack`，stdio/HTTP/SSE 通用；调用经 `run_coroutine_threadsafe` 投递，会话内串行锁保证浏览器操作顺序。
+- 回收：空闲 600s 惰性回收（`execute` 入口顺带 reap）；配置指纹变化自动重建；传输异常丢弃会话下次重建；FastAPI shutdown 钩子 `shutdown_all` 优雅关闭（aclose 10s 超时放弃，daemon 线程随进程退出）；实测 playwright Chrome 在 shutdown 后数秒内被收割。
+- `MCPClient.call` 改**同步**（走池）；`discover`（测试并发现工具）保持一次性连接——它是显式管理操作，冷启动无副作用。`general_agent` 的 `anyio.run(MCPClient.call, ...)` 改直接调用。
+- 业务错误（MCP 返回 isError 结果）不抛异常、不丢弃会话；只有传输类异常才重建。
+
+### 测试适配与新增
+
+- 4 个测试文件的 `MCPClient.call` 替身从 `async def` 改同步——原替身在同步调用下返回未 await 的 coroutine，导致 10 个审批/执行用例失败（首批全量回归暴露，`--lf` 逐个修复）。
+- fixture_mcp 新增 `proc_pid` 工具（返回进程 pid）；`test_permission_modes.py` 扩至 16 项：pid 跨调用相同（进程复用）、配置指纹变化 pid 变化（重建）、空闲超时 pid 变化（回收）；真 stdio 用例补 `SESSION_POOL.shutdown_all()` 防孤儿进程。
+- 全量回归：**611 passed**（运行副本与 JobScope 发布仓各跑一遍）。
+
+### 真实验收
+
+- 池层脚本（.venv 直调）：`browser_navigate(example.com)` → `browser_snapshot` 读到 "Example Domain" 页面正文——修复前 snapshot 拿到的是全新空白会话。
+- UI 全链路（8765 + 真实模型 + @playwright/mcp）：自主档发"navigate 打开 example.com 再 snapshot 读取"→ navigate 首次弹审批卡（服务方标 destructive）→ 「本会话始终允许」授权 → completed；snapshot（readOnlyHint）自主档直跑 → completed 且读到第一次导航的页面；最终回答给出正确标题与正文第一句。多步操作完整串接。
+- 发布仓库 `372942b` 经 `feat/mcp-session-pool` 合入 `966101b` 已推送。
