@@ -454,3 +454,7 @@ npm run build                                          # 通过
 - 池层脚本（.venv 直调）：`browser_navigate(example.com)` → `browser_snapshot` 读到 "Example Domain" 页面正文——修复前 snapshot 拿到的是全新空白会话。
 - UI 全链路（8765 + 真实模型 + @playwright/mcp）：自主档发"navigate 打开 example.com 再 snapshot 读取"→ navigate 首次弹审批卡（服务方标 destructive）→ 「本会话始终允许」授权 → completed；snapshot（readOnlyHint）自主档直跑 → completed 且读到第一次导航的页面；最终回答给出正确标题与正文第一句。多步操作完整串接。
 - 发布仓库 `372942b` 经 `feat/mcp-session-pool` 合入 `966101b` 已推送。
+
+## 2026-11-12 补充：放宽 agent 执行限额（工具 50 次）
+
+用户反馈多步浏览器任务"没一会就中断"。原限额 8 轮/12 次工具/48000 字符/240 秒，playwright 任务一轮几个调用、每次 5-7 秒，很快触顶。四项配套放宽（只改一个会换个上限照样中断）：`MAX_CALLS` 12→50、`MAX_STEPS` 8→60、`MAX_CONTEXT` 48000→160000（每条结果仍截 12000）、240 秒时限常量化为 `MAX_SECONDS=900`。系统提示词限额文案按常量动态生成（f-string 段，注意那段原本是普通字符串）。`test_unknown_tools_rejected_and_loop_bounded` monkeypatch 限额回 8 验证循环有界性（否则 8 条脚本耗尽直接 IndexError）。全量 611 passed 两仓；发布仓库 `c6cce67` 经 `feat/raise-agent-limits` 合入 `5c94d01` 已推送。
