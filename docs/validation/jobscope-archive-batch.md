@@ -470,3 +470,15 @@ npm run build                                          # 通过
 - **提示词**：基础段补"工商主体优先 company_web_lookup、岗位数据先 collect_jobs 落库"；新增无条件 `_collection_guidance` 段（快查 vs 搜索 MCP 分工、状态透传纪律、citable_evidence 引用规则）；`_web_search_guidance` 把工商信息从搜索 MCP 首选场景改道到快查（保留全部既有断言短语，test_web_search_guidance 无需改）。
 - **测试**：新增 `test_agent_collect_tools.py` 11 项（happy path 落库+登记、三种状态透传、company 范围越界 ScopeBoundaryError 且不建任务、job/company 范围拒绝、collect 摘要不含全量岗位、系统提示断言、/api/chat 端到端）；两仓全量 **624 passed**。
 - **并发交付**：与"停止即时断流"会话同窗作业——对方 register_abort/MCP 可中断链在 general_agent.py 同文件混改动，用"HEAD+仅本次改动"脚本经 `hash-object + update-index` 隔离暂存（工作区文件原样留给对方），feat 提交后在独立 worktree 验证提交组合（621+1 环境性 dist 缺失）、再在临时 worktree 合并 main（`93e7d7d` → merge `4ba95de`），merge 后两特性共存 624 全绿；checkout 被并发未提交改动挡住时不强抢，用 symbolic-ref+reset 收尾。发布仓库 `8243e80` 经 `feat/agent-collect-tools` 合入 `4ba95de` 已推送。
+
+## 2026-11-12 补充：对话顺序显示模式 + 系统设置页
+
+用户反馈：对话输出是合并式（思维链聚一段、工具聚「执行过程 N 次调用」、正文压轴），顺序信息全丢；想要 AI IDE 式追加流（思维链被打断就换新卡片，工具/正文/思维链按发生顺序穿插），并要一个设置页改系统参数。
+
+- **合并机制的根源与破解**：`useChatRun` 的 RunState 把 SSE 三类事件分别累进 `steps[]/answer/reasoning` 互不相关的字段，顺序在前端即丢失。SSE 事件本身天然按序到达（重挂整段重放），流式侧只需加一个保序 `segments` 数组；**落库侧**才是真缺口——`general_agent._loop` 每轮重置 `partial/reasoning`、只存最后一轮，历史消息要按序显示必须后端补存分段 timeline。
+- **后端 timeline**：`state['timeline']` 全程记录——`_event()` 里每个 step 类事件追加 `{'kind':'step','event':…}`；`_loop` 包装 `on_delta/on_reasoning` 追加 text/reasoning 段（相邻同 kind 合并、每段 8000 字符封顶）；非流式路径（hooks=None）每轮结束后整轮 content 记一段；`_result` 带出、`chat_runs._persist` 落 `message.timeline`。审批暂停/续传经 `agent_pending` JSON 序列化天然保序（`resume` 对旧 pending 状态 setdefault 兼容）。旧消息无 timeline 前端自动回落合并布局。
+- **系统设置**：`settings.py` 新增 `SystemSettingsStore`（`system_settings` KV 表）+ `GET/PUT /api/settings/system`；参数：`chat_display_mode`（merged/sequential，默认 merged 不动存量行为）、`show_reasoning`（原 localStorage `jobscope-reasoning` 开关迁移为服务端设置，composer 快捷开关改为写同一 store，跨浏览器一致）、`agent_limits`（轮数/工具次数/上下文/时长，原硬编码 MAX_* 常量改为从设置读取、保存时钳制 1-200/1-300/10k-1M/60-7200）。
+- **前端**：新 `systemSettingsStore.ts` 模块级共享 store（fetch 一次 + subscribe + 乐观更新）；`RunState.segments` 保序维护；新 `ChatSegments.tsx`（左侧轨道线、流式时仅最后一段 live 展开、更早段自动折叠=「打断换卡」）；`ReasoningBlock` 抽独立文件防循环依赖（注意 Windows 大小写不敏感：store 文件名 `systemSettingsStore.ts` 与页面 `SystemSettings.tsx` 不能仅差大小写）；流式气泡与历史消息（`ChatWorkspace`/`ChatMessageItem`）按 displayMode 双分支。新「系统设置」页挂侧边栏工作区管理组。
+- **测试**：新增 5 项——settings 默认值/钳制/重启持久化/非法枚举 422、非流式 timeline 分段、限额走设置（轮数 1 提前收尾）、流式 timeline 保序（reasoning→agent_model→project_search→reasoning→text→agent_model）、审批暂停续传 timeline 不丢序；原 monkeypatch MAX_STEPS 的循环有界测试改走设置端点。
+- **并发窗口**：另一会话同时在运行副本做公司横评（compare）半成品（main.py 路由、api.ts/App.tsx/styles.css/CompanyCompare.tsx、reliability 测试 3 红属其进行中状态）。同步策略：10 个纯我的文件整 cp；main.py/api.ts/App.tsx/styles.css 四个混改文件在 worktree 里对 HEAD 版外科式打我的补丁；独立 worktree `feat/chat-sequential-mode` 上后端 **632 passed** + npm build 通过；快进合 main（`08bc63f→88eb61f`）、删分支、移除 worktree、已推送。
+- **验收提示**：8765 旧实例须重启才能出 `/api/settings/system` 与 timeline 落库；切换入口在侧边栏「工作区管理 → 系统设置」。
