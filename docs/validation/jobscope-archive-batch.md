@@ -348,3 +348,13 @@ npm run build                                          # 通过
 - `msg-actions` 从气泡头移到气泡内容之后（article 最后一个子元素），常显不再依赖 hover；用户消息右对齐、助手消息左对齐。
 - 样式弱化为文字级小按钮（无边框灰字，hover 浅底），避免喧宾夺主；编辑/重发/删除仍仅可变会话中显示，删除二次确认逻辑不变。折叠消息（compacted）继续隐藏操作。
 - 验证：三类气泡按钮均渲染在 article 底部（actionsBottom=true、head 无残留）、用户消息按钮与正文右缘对齐、常显可见。发布仓库 `10b51da` 已推送。
+
+## 2026-11-12 补充：扩展市场拆分 MCP 与 Skills 双页
+
+用户要求市场也按类型各管各的、互不干扰。原先单一「市场」tab 里 MCP 服务与 Skills 混排：共用一个搜索框与一套分类筛选（分类取两边并集），在线检索结果（npm + GitHub）也同屏交错。
+
+- `AgentExtensions` 顶层 tab 从 3 个拆为 4 个：MCP 市场 / MCP 工具 / Skills 市场 / Skills，发现页与管理页按类型配对；各 tab 描述文案集中为 `TAB_DESCRIPTIONS`。
+- `MarketView` 增加 `kind: 'mcp' | 'skill'`：搜索框、placeholder、分类 chips、目录列表、在线检索结果与空态提示全部按页独立；MCP 页只出 npm 在线结果，Skills 页只出 GitHub 在线结果（后端 `search_online` 不变，前端按 kind 取半边）。
+- 后端仅改一处文案：`skills_error` 去掉「MCP 结果不受影响」的跨页表述（该提示现在只出现在 Skills 市场页）。
+- 验证：运行副本与发布仓 `tsc -b && vite build` 均通过；`test_extensions_market.py` 10 passed。发布仓库 `73ca32d` 已推送。
+- 并发说明：交付时运行副本还叠着一份未提交的「联网搜索指引」文案改动（对应 `feat/agent-web-search-guidance` 分支，无提交）；按用户选择本次提交已剔除该文案，仅交付拆页本身，两仓在该文案上暂不同步。
