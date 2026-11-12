@@ -411,3 +411,23 @@ npm run build                                          # 通过
 - 运行副本与发布仓各跑一遍全量（均 604 passed）；发布仓 `ea6883a` 经 `feat/chat-permission-mode` 合入 `ddc440b` 已推送。
 - 浏览器实测（本机 8765 + 真实模型 + @playwright/mcp）：存量 11 会话迁移 autonomous；full 档问"调用 browser_tabs"→ 直接执行（时间线 `@playwright/mcp / browser_tabs 5957ms completed`）无审批卡，会话落库 `permission_mode=full`；重开会话控件显示完全访问；切回自主再问 → 审批卡弹出且 reason 为新文案"该工具未声明只读、也未勾选自动执行"，拒绝路径收尾正常（卡片消失、时间线出现用户拒绝）；升档弹窗取消/确认、降档直达、确认档切换均符合预期。
 - 流程修正：ResumeLoom 父仓库已把 `jobscope/` 整目录入 .gitignore（源码只在 JobScope 独立仓提交），本次 feat 分支建在 JobScope 仓；ResumeLoom 仅记本交付文档。
+
+## 2026-11-12 补充：工具确认卡「本会话始终允许」授权
+
+用户反馈自主档下 playwright 工具仍逐次确认（navigate/click "基本没风险"不该每次问）。排查：@playwright/mcp 给全部动作类工具标了 `destructiveHint: true`（点官方标注谨慎放宽），readOnlyHint 只有 snapshot/screenshot 等 8 个——所以按标注放行解决不了，真正对症的是用户点名的**会话内固定命令后续都允许**。
+
+### 实现
+
+- `agent_tool_grants` 表（conversation_id+server_id+tool_name 主键）：审批请求 `grant=true` 时在 `GeneralAgent.resume` 登记（批准即记，不依赖执行成败）；删会话路由顺带清理。
+- 判定链优先级变为：**简历红线 > 会话授权 > 权限档位**。授权是显式 opt-in，confirm 档也认；跨会话不蔓延（主键含 conversation_id）。
+- registry 增加 `destructive` 标记，审批 reason 分文案（destructive="可能修改外部数据或页面状态"）。
+- 审批卡第三按钮「本会话始终允许」；想跨会话永久放行仍走 MCP 工具页「自动执行」勾选（文案已引导）。
+
+### 验证
+
+```powershell
+.venv\Scripts\python.exe -m pytest backend/tests -q   # 609 passed（test_permission_modes.py 扩至 14 项：授权直跑/会话隔离/confirm 认授权/红线压授权/拒绝不记授权/destructive 文案）
+npm run build                                          # 通过
+```
+- 真实 E2E（8765 + @playwright/mcp browser_tabs）：自主档发起调用 → 审批卡三按钮、reason 为 destructive 文案 → 点「本会话始终允许」→ 授权落库 → 同会话再调同工具时间线直接 completed、无 waiting 步骤。
+- 发布仓库 `acf400c` 经 `feat/session-tool-grants` 合入 `3dd648b` 已推送。
