@@ -458,3 +458,15 @@ npm run build                                          # 通过
 ## 2026-11-12 补充：放宽 agent 执行限额（工具 50 次）
 
 用户反馈多步浏览器任务"没一会就中断"。原限额 8 轮/12 次工具/48000 字符/240 秒，playwright 任务一轮几个调用、每次 5-7 秒，很快触顶。四项配套放宽（只改一个会换个上限照样中断）：`MAX_CALLS` 12→50、`MAX_STEPS` 8→60、`MAX_CONTEXT` 48000→160000（每条结果仍截 12000）、240 秒时限常量化为 `MAX_SECONDS=900`。系统提示词限额文案按常量动态生成（f-string 段，注意那段原本是普通字符串）。`test_unknown_tools_rejected_and_loop_bounded` monkeypatch 限额回 8 验证循环有界性（否则 8 条脚本耗尽直接 IndexError）。全量 611 passed 两仓；发布仓库 `c6cce67` 经 `feat/raise-agent-limits` 合入 `5c94d01` 已推送。
+
+## 2026-11-12 补充：采集能力接入 Agent 工具层（公司快查 + 岗位采集）
+
+用户反馈：对话里问"查一下浙江的证优客"，Agent 因工具层没有采集类工具，拿 Playwright MCP 手搓浏览器查天眼查（Bing 空结果→爱企查登录墙→天眼查成功）——而项目快查（企查查/天眼查，走用户已登录的项目 Chrome 会话）与岗位采集管线早已存在，只是没暴露给 Agent。
+
+- **管线下沉**：main.py 的采集编排闭包（persist_collection / execute_collection / run_collection / execute_lookup）抽到新模块 `backend/jobscope/collect_service.py`（repo/data_dir 显式传参、importlib 调用时按名加载），页面端点与 Agent 工具共用一条管线；main.py 四个闭包改 thin delegate，端点行为与响应形状不变。
+- **两个内置工具**（BUILTINS，直接执行不走 MCP 审批流）：
+  - `company_web_lookup(channel, company)`：复用快查管线，卡片照常落 `web_company_profile` 证据；范围纪律与 company_profile 相同（非 global 须 `require_company`）；只有过 `allows_evidence` 的证据经 `_remember` 登记进 `citable_evidence`，其余按外部信息转述防虚构引用；needs_login/needs_verification/backoff 状态原样透传不重试。
+  - `collect_jobs(source, query, location, limit≤100)`：job 范围一律拒绝（读不了其他岗位）、company 范围 query 必须含公司名、global 放行；不满足直接 `out_of_scope` 不建任务防污染资料库；返回紧凑摘要（status/companies 前 10/sample 前 5 条四字段），全量岗位走 project_search/project_salary 检索。
+- **提示词**：基础段补"工商主体优先 company_web_lookup、岗位数据先 collect_jobs 落库"；新增无条件 `_collection_guidance` 段（快查 vs 搜索 MCP 分工、状态透传纪律、citable_evidence 引用规则）；`_web_search_guidance` 把工商信息从搜索 MCP 首选场景改道到快查（保留全部既有断言短语，test_web_search_guidance 无需改）。
+- **测试**：新增 `test_agent_collect_tools.py` 11 项（happy path 落库+登记、三种状态透传、company 范围越界 ScopeBoundaryError 且不建任务、job/company 范围拒绝、collect 摘要不含全量岗位、系统提示断言、/api/chat 端到端）；两仓全量 **624 passed**。
+- **并发交付**：与"停止即时断流"会话同窗作业——对方 register_abort/MCP 可中断链在 general_agent.py 同文件混改动，用"HEAD+仅本次改动"脚本经 `hash-object + update-index` 隔离暂存（工作区文件原样留给对方），feat 提交后在独立 worktree 验证提交组合（621+1 环境性 dist 缺失）、再在临时 worktree 合并 main（`93e7d7d` → merge `4ba95de`），merge 后两特性共存 624 全绿；checkout 被并发未提交改动挡住时不强抢，用 symbolic-ref+reset 收尾。发布仓库 `8243e80` 经 `feat/agent-collect-tools` 合入 `4ba95de` 已推送。
