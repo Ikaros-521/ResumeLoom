@@ -379,3 +379,35 @@ npm run build                                          # 通过
 - 真实模型实测（无搜索 MCP）：问"证优客最近一个月有什么新闻"→ Agent 先在项目内检索两次、如实说明项目范围不含新闻信源、未编造引用；第一轮曾幻觉 [E-…] 引用被引用校验拦截（防线有效），据此补强了无工具分支的"禁止输出证据引用"话术后复测通过。
 - 已知边界：@playwright/mcp（浏览器自动化）不会被误判为搜索工具；真实联网验收需用户注册 Tavily/Brave key 后按「市场安装 → 填 key → 测试 → 启用 → 授权设自动」步骤接入，然后问时效问题观察主动调用。
 - 发布仓库 `f2fcfbe` 已推送（直接落 main——feat 分支名与并发会话残留分支冲突，结果与内容不受影响）。
+
+## 2026-11-12 补充：对话三档工具权限模式（变更前确认/自主/完全访问）
+
+用户要求参照 ZCode agent 的三档权限模式，给对话加会话级模式切换，并把 MCP 工具执行按档自动化。此前门槛只有每工具静态白名单（`auto_tools`），要免确认得逐工具去扩展管理页勾选。
+
+### 语义（模式是主策略）
+
+| 档位 | MCP 调用行为 |
+|---|---|
+| `confirm` 变更前确认 | 全部弹审批卡（auto_tools 暂不生效） |
+| `autonomous` 自主（默认，存量迁移） | readOnlyHint（服务方声明）或 auto_tools 白名单内直接执行，其余逐次确认 |
+| `full` 完全访问 | allowed_tools 内全部自动执行 |
+
+不变项：内置 9 工具三档都直接执行（全只读/仅提案）；**简历红线**——本轮读过简历后外发调用任何档位都强制确认（保住既有隐私底线与测试语义）；allowed_tools 白名单与 scope 边界照常；审批状态机（pending/claim/approve/SSE approval_required）零改动复用。
+
+### 实现
+
+- `conversations` 新列 `permission_mode`（默认 `autonomous`，位置插入两处 INSERT 同步补列）；`ConversationPatch`/`ChatRunInput` 加 Literal 字段，`PATCH /api/conversations/{id}` 与 `POST /api/chat/runs` 读写；`RunManager.start` 仿 model 的 None=沿用/显式写回语义，随每轮 run 透传给 `GeneralAgent.start` 并落 state 快照（resume 沿快照，运行中前端禁切）。
+- 判定点 `general_agent._execute`：resume 红线 > full 全放 > confirm 全拦 > autonomous 按 `binding['read_only']`（`_catalog` 时从已存但从未使用的 `annotations.readOnlyHint` 提取进 registry，registry 项不参与 fingerprint、老 pending 状态缺键安全回退）∪ auto_tools 放行；审批 reason 分档文案。
+- 系统提示词按档注入确认指引（仿 `_web_search_guidance` 的 `_permission_guidance`），替换原先写死的"MCP调用参数会展示给用户确认"。
+- 前端：输入区三段分段控件（确认/自主/完全访问，当前档白底绿字，运行/待确认禁切），底部提示文案随档变化；切往完全访问弹 420px 小确认框（点背景/Escape/取消均可回退），降档直达；档位照 `changeModel` 三段式保存（乐观更新 + PATCH + 新会话随 startChatRun 落库）。顺手清了无引用的死样式 `.agent-mode-select`。
+- README「工具权限档位」段落补文档；`@playwright/mcp` 的 browser_tabs（无 readOnlyHint、不在 auto_tools）是天然验收夹具。
+
+### 验证
+
+```powershell
+.venv\Scripts\python.exe -m pytest backend/tests -q   # 604 passed（新增 test_permission_modes.py 9 项：confirm 压过 auto_tools/自主三路/全放/简历红线×full/提示词三档/PATCH 回环+422/落库与沿用；test_scope_expansion 的 start 替身补 permission_mode 形参）
+npm run build                                          # 通过
+```
+- 运行副本与发布仓各跑一遍全量（均 604 passed）；发布仓 `ea6883a` 经 `feat/chat-permission-mode` 合入 `ddc440b` 已推送。
+- 浏览器实测（本机 8765 + 真实模型 + @playwright/mcp）：存量 11 会话迁移 autonomous；full 档问"调用 browser_tabs"→ 直接执行（时间线 `@playwright/mcp / browser_tabs 5957ms completed`）无审批卡，会话落库 `permission_mode=full`；重开会话控件显示完全访问；切回自主再问 → 审批卡弹出且 reason 为新文案"该工具未声明只读、也未勾选自动执行"，拒绝路径收尾正常（卡片消失、时间线出现用户拒绝）；升档弹窗取消/确认、降档直达、确认档切换均符合预期。
+- 流程修正：ResumeLoom 父仓库已把 `jobscope/` 整目录入 .gitignore（源码只在 JobScope 独立仓提交），本次 feat 分支建在 JobScope 仓；ResumeLoom 仅记本交付文档。
