@@ -504,3 +504,16 @@ npm run build                                          # 通过
 - **并发注意**：运行副本 App.tsx 含并发会话未交付的「简历工坊」（ResumeWorkshop）半成品——该文件只能外科式 sed 打标签一行，勿整 cp。
 - **验证**：运行副本 tsc + build 通过、dist bundle 含新文案且旧文案清零；发布仓同 build 通过。
 - 发布仓库 `a250fd1` 经 `feat/reference-button-labels` 合入 `f80b24c` 已推送；feat 分支已删。8765 伺服 frontend/dist 静态文件，**无需重启，浏览器硬刷新**即见新文案。
+
+## 2026-11-13 补充：简历工坊（JD 定向优化 + 模板预览 + 多格式导出）
+
+用户需求：针对不同公司要求定向优化简历；优化结果可 MD 预览与二次编辑；内置常用模板；导出 PDF 等常用格式。
+
+- **后端 `resume_workshop.py`**（新模块）：3 个内置模板（classic 经典衬线 / modern 现代无衬线 / compact 紧凑单栏，仅 CSS 差异）；渲染管线统一为 md→HTML（Markdown 库 tables 扩展）+ 模板 CSS，iframe 预览 / HTML 导出 / PDF 导出同源所见即所得。PDF 用 **pymupdf Story**（MuPDF 自带 Droid Sans Fallback 中文渲染，spike 实测无 tofu；DocumentWriter 直写 BytesIO 后 `subset_fonts()` + deflate，3.6MB→~40KB）。DOCX 用 python-docx + 标准库 html.parser 轻遍历（表格先缓冲网格再一次性建表——`_Row` 无 add_cell 是坑）。requirements 补 `Markdown`、`python-docx`（.venv 经 Miniconda system-site-packages 本就有）。
+- **优化端点** `POST /api/resume-versions/optimize`：analysis purpose（`complete()`，temp .3 / 8000 tokens / 180s）；system prompt 红线——只重组已有事实，严禁虚构经历/技能/数字，JD 有而简历没有的不得写入；输出协议 `<<<RESUME>>>`/`<<<NOTES>>>` 分隔符（缺失容错：全文当简历、notes 空，过短 502）。成功即落库为版本（含 JD 快照 jd_digest、基础简历快照 base_text、notes）。
+- **数据层**：`resume_versions` 表（幂等 CREATE）+ repository CRUD；端点组：模板列表/preview、版本 CRUD、`/export?format=pdf|docx|html|md`（Content-Disposition filename* 中文）。未配置 analysis 模型 → 400 引导去模型设置。
+- **前端 `ResumeWorkshop.tsx`**：三栏一屏（版本列表 / 优化配置+MD 编辑 / 模板 chips + iframe srcDoc 实时预览（防抖 800ms、sandbox=""）+ 导出按钮组）。优化表单：基础简历=我的简历或粘贴；目标岗位=本地档案 typeahead（listing 摘要标注提醒）或粘贴 JD；补充指示。导出前自动保存未存修改。岗位详情「评估适配」旁新增「优化简历」入口（workshopPrefill 预填跳转）。App.tsx 8 处外科编辑、styles.css 纯追加。
+- **测试** `test_resume_workshop.py` 6 例：模板/preview、CRUD、优化落库+红线文案断言进 system、岗位联动与守卫、无模型/坏回复容错、四格式导出（PDF 回提中文、docx 打开验段落表格）。
+- **并发手术**：本次撞上 JobScope main 连续两次前进（13e188d loading-perf、f80b24c reference-labels，后者还会动 App.tsx 一行）。运行副本与 main 双向分叉（运行副本含未交付 company_merge_proposals 半成品；main 删了 MODEL_METADATA 等被运行副本持有）——全部走 worktree + **以 main 为底重放**：3 新文件整 cp，models/api/styles/requirements 纯追加，main.py/repository.py/App.tsx 锚点重放（worktree CRLF 检出须先归一化 LF 再匹配锚点，requirements.txt 首轮就因此静默漏改）。rebase 到 f80b24c 无冲突二次 build 复核通过。
+- **验证**：运行副本全量 **644 passed**；worktree 上 **643 passed + 1 环境性失败**（test_index_shell 无 frontend/dist 属产物缺失非代码）；双处 npm build 通过；8765 重启（Miniconda 同参数）后实测四格式导出 200（PDF 44.9KB / DOCX 37.1KB / HTML / MD），联调数据已清。
+- 发布仓库 `4511f9a` 经 `feat/resume-workshop` 合入 main 已推送；feat 分支与 worktree 已删。上一节提到的「简历工坊半成品」即本次交付，已转正。
