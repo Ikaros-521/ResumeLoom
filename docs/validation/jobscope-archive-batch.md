@@ -517,3 +517,15 @@ npm run build                                          # 通过
 - **并发手术**：本次撞上 JobScope main 连续两次前进（13e188d loading-perf、f80b24c reference-labels，后者还会动 App.tsx 一行）。运行副本与 main 双向分叉（运行副本含未交付 company_merge_proposals 半成品；main 删了 MODEL_METADATA 等被运行副本持有）——全部走 worktree + **以 main 为底重放**：3 新文件整 cp，models/api/styles/requirements 纯追加，main.py/repository.py/App.tsx 锚点重放（worktree CRLF 检出须先归一化 LF 再匹配锚点，requirements.txt 首轮就因此静默漏改）。rebase 到 f80b24c 无冲突二次 build 复核通过。
 - **验证**：运行副本全量 **644 passed**；worktree 上 **643 passed + 1 环境性失败**（test_index_shell 无 frontend/dist 属产物缺失非代码）；双处 npm build 通过；8765 重启（Miniconda 同参数）后实测四格式导出 200（PDF 44.9KB / DOCX 37.1KB / HTML / MD），联调数据已清。
 - 发布仓库 `4511f9a` 经 `feat/resume-workshop` 合入 main 已推送；feat 分支与 worktree 已删。上一节提到的「简历工坊半成品」即本次交付，已转正。
+
+## 2026-11-13 补充：岗位收藏功能（收藏夹 + 反查 + 收藏内横评，Phase 1）
+
+用户需求：收藏岗位 → 反查岗位最新情况 → 收藏内做横评 → 直达源帖；后期再做平台侧收藏（本项目浏览器登录态内 JS 注入/模拟点击/调 API），本轮仅文档预留不实现。
+
+- **存储**：`starred`/`starred_at` 进 jobs payload。关键坑：`save_job` 重采集 upsert 整包覆盖 payload——收藏标记加入幸存继承块（repository.py，无条件从 previous 继承），否则一次日常刷新就静默清空全部收藏。`update_jobs` 白名单加 starred（置 True 盖 starred_at、置 False 清空）；`_job_filters`/`page`/`job_ids` 加 `starred` 过滤（`json_extract('$.starred')=1`，只认显式 true）。
+- **API**：GET /api/jobs 与 /api/jobs/ids 加 `starred` 查询参数；PATCH /api/jobs 模型加 `starred: bool | None`（exclude_none 保留显式 false）；DetailBatchInput 加 `ids`（≤200，min_length=1）——批量反查与完整JD补采共用任务管道，`run_batch` ids 模式池子按指定 id 且**不限 complete 状态**（反查就是要重读已完整岗位），任务标题区分「收藏岗位反查/完整JD批量补采」。
+- **前端**：`Icon.tsx`（从 App 抽出防循环导入，加 star 图标）、`JobCard.tsx`（档案页/收藏夹共用卡片：勾选框+卡体+第三列星标+actions/footer 插槽）、`FavoritesView.tsx`（轻列表：q 筛选、本页全选、批量反查=批量任务+2s 轮询、横评选中公司=公司去重逐个 addCompareCompany 满 8 如实提示、取消收藏、单条反查、卡底反查时间）。档案页：「只看收藏」开关（立即生效）、选择条收藏/取消收藏、详情标题栏收藏按钮、侧栏收藏入口+角标（`GET /jobs?starred=true&page_size=1` 轻请求）。点收藏卡跳岗位研究复用完整详情工作台。styles.css 只追加（卡片第三列网格、星标金色、收藏面板）。
+- **踩坑**：① `.job-archive-filters input` 通配 40px/100% 规则把收藏开关复选框撑大——追加同特异性规则收回 16px；② 冒烟脚本首版依赖「首条未收藏」前置状态，跑第二遍即翻转——改为开头 API 复位+状态断言（toast 只加分不断言）；③ 同秒 updated_at 并列时 run_batch 池子顺序不保证——测试断言改无序比较。
+- **并发撞车实录**：发布仓在本次交付窗口被并发会话推进三个提交（workshop `4511f9a`、横评门槛 `9c1973a`、实体合并 `74b437b`，后者 10:05 提交恰在冒烟前 2 分钟）。models.py 的 starred/ids 被 74b437b 的 cp 同步**顺带扫进 main**（diff 为 0 直接跳过）；api.ts/main.py 仍是混改（渠道元数据 MODEL_METADATA 并发线在运行副本未交付）——main.py/api.ts 外科打我的 hunks，styles.css 只追加收藏块；App.tsx 因两侧都已带工坊且都无 CompanyMerge 集成，核实 diff 全归属本改动后**整 cp**。8765 伺服静态 dist 且并发会话恰好重启过服务，新后端已生效，无需再重启。
+- **测试**：新 `test_job_favorites.py` 6 项（重采集幸存/PATCH 开关与时间戳/过滤/ids 池重读已完整岗位/ids 上限与缺失/端点校验）；运行副本与 JobScope 双仓后端全量 **658 passed**；双仓 tsc+build 通过；Playwright 冒烟 7 步 ×2 轮全过（侧栏入口/星标/只看收藏/详情收藏态/收藏夹卡片与操作行/横评选中公司/取消收藏空态+服务端复核），零控制台错误。
+- 发布仓库 `36b9341` 经 `feat/job-favorites` 合入 `c5010c2` 已推送；feat 分支已删。**Phase 2 预留**（平台侧收藏，未实现）：复用 browser.py 会话纪律（port/profile/session_lock），走 `FETCH_JS` in-page fetch(credentials:'include') 调平台收藏接口或 `run_js` 模拟点击，任务走 create_task+轮询；数据字段（如 `platform_favorited`）到时再加。
