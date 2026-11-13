@@ -529,3 +529,12 @@ npm run build                                          # 通过
 - **并发撞车实录**：发布仓在本次交付窗口被并发会话推进三个提交（workshop `4511f9a`、横评门槛 `9c1973a`、实体合并 `74b437b`，后者 10:05 提交恰在冒烟前 2 分钟）。models.py 的 starred/ids 被 74b437b 的 cp 同步**顺带扫进 main**（diff 为 0 直接跳过）；api.ts/main.py 仍是混改（渠道元数据 MODEL_METADATA 并发线在运行副本未交付）——main.py/api.ts 外科打我的 hunks，styles.css 只追加收藏块；App.tsx 因两侧都已带工坊且都无 CompanyMerge 集成，核实 diff 全归属本改动后**整 cp**。8765 伺服静态 dist 且并发会话恰好重启过服务，新后端已生效，无需再重启。
 - **测试**：新 `test_job_favorites.py` 6 项（重采集幸存/PATCH 开关与时间戳/过滤/ids 池重读已完整岗位/ids 上限与缺失/端点校验）；运行副本与 JobScope 双仓后端全量 **658 passed**；双仓 tsc+build 通过；Playwright 冒烟 7 步 ×2 轮全过（侧栏入口/星标/只看收藏/详情收藏态/收藏夹卡片与操作行/横评选中公司/取消收藏空态+服务端复核），零控制台错误。
 - 发布仓库 `36b9341` 经 `feat/job-favorites` 合入 `c5010c2` 已推送；feat 分支已删。**Phase 2 预留**（平台侧收藏，未实现）：复用 browser.py 会话纪律（port/profile/session_lock），走 `FETCH_JS` in-page fetch(credentials:'include') 调平台收藏接口或 `run_js` 模拟点击，任务走 create_task+轮询；数据字段（如 `platform_favorited`）到时再加。
+
+## 2026-11-13 补充：测试数据纪律规则（AGENTS.md/CLAUDE.md + .data 清污）
+
+用户需求：开发/测试期间注入数据库的测试数据，测完必须删掉或用隔离库，不许污染本地生产库。
+
+- **背景**：`create_app()` 默认 data_dir 是**绝对定位**的项目根 `.data`（`backend/jobscope/main.py`），换端口/换 cwd 都不隔离——测试实例若不显式设 `JOBSCOPE_DATA_DIR`，即使打 8766 也与 8765 生产实例共用同一个 `jobscope.sqlite3`。pytest 套件本身已全部 `create_app(tmp_path)` 隔离；污染主要来自手动/接口测试与历史残留（`.data` 里曾躺着 7 个 `pytest-*` 目录 + 13M `browser-smoke` 浏览器缓存）。
+- **规则落地**：项目根新增 `AGENTS.md`（四条硬规则：① pytest 一律 tmp_path 隔离、禁相对路径 data_dir；② 手动/接口/UI 验收一律打 8766 测试实例且必须显式设 `JOBSCOPE_DATA_DIR` 指向临时目录，禁对 8765 写测试数据；③ 万一真实库被注入，测完必须清干净或测前备份测后还原（WAL 文件一起处理）；④ `.data` 不留 `pytest-*`/`browser-smoke`/`test_*` 测试产物）+ `CLAUDE.md`（单行 `@AGENTS.md` 引用，供 AI 工具自动加载）。smoke 脚本既有 8766 约定在规则中正式化。
+- **清污**：`.data` 已删上述 9 个测试残留目录（逐一核实内容均为 collector 快照/测试 chromium profile），现仅剩 `jobscope.sqlite3`、`browser`（运行时下载目录）、`server-8765.log`。
+- 发布仓库 `c9cf2ec` 经 `feat/test-data-hygiene` 合入 `a9ae9c8` 已推送；feat 分支已删。两份规则文件已随 cp 同步存在于运行副本与发布仓。
