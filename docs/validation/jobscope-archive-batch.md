@@ -538,3 +538,14 @@ npm run build                                          # 通过
 - **规则落地**：项目根新增 `AGENTS.md`（四条硬规则：① pytest 一律 tmp_path 隔离、禁相对路径 data_dir；② 手动/接口/UI 验收一律打 8766 测试实例且必须显式设 `JOBSCOPE_DATA_DIR` 指向临时目录，禁对 8765 写测试数据；③ 万一真实库被注入，测完必须清干净或测前备份测后还原（WAL 文件一起处理）；④ `.data` 不留 `pytest-*`/`browser-smoke`/`test_*` 测试产物）+ `CLAUDE.md`（单行 `@AGENTS.md` 引用，供 AI 工具自动加载）。smoke 脚本既有 8766 约定在规则中正式化。
 - **清污**：`.data` 已删上述 9 个测试残留目录（逐一核实内容均为 collector 快照/测试 chromium profile），现仅剩 `jobscope.sqlite3`、`browser`（运行时下载目录）、`server-8765.log`。
 - 发布仓库 `c9cf2ec` 经 `feat/test-data-hygiene` 合入 `a9ae9c8` 已推送；feat 分支已删。两份规则文件已随 cp 同步存在于运行副本与发布仓。
+
+## 2026-11-13 补充：信号来源接入采集链（按来源补数据 + 付费 API 配置化）
+
+用户需求：「求职参考 → 信号来源与付费接口」配置保存后，实际采集（多平台检索/横评补数据/公司快查）根本没用上它——查实为接线缺失：paid.collect 唯一生产调用点无前端入口，重算只认本地源，credit_china/court_records 仅登记无实现；另发现盘点/抽取反馈条件写反（`id === activeJobId.current` 应为 `!==`），当前岗位下结果被静默丢弃。
+
+- **后端**：新 `reliability/collection.py` 共享采集核（证据持久化、任务复用、运行时禁用→skipped、单来源失败隔离、任务记录防密钥泄漏）。`/company-research` 加 `signal_sources` 显式选择（付费/未验证 opt-in、提交前预校验、运行时再核开关）；默认只选 implemented+ready+available 的免费源（目前仅 jobscope_jobs，GSXT 待实测不自动跑）；逐来源 `signal_<id>` 任务 + 收尾 `reliability_compute` 重算（refresh_local=False 防重复采集）。来源登记加 implemented/ready/unavailable_reason/last_run；未实现来源禁启用。
+- **付费 API 配置化**：auth_header/auth_prefix（'Bearer ' 尾空格有意义，全局 strip 会毁掉它——SignalSourceInput 不做 str_strip）/company_param + 完整字段映射 JSON（槽位组合必须与内置一致，防静默不取数）；URL 定值查询参数保留、密钥查询参数/嵌入凭据拒绝、响应中检测到密钥原文整轮拒存；只支持兼容 HTTP GET（或适配网关），不实现厂商原生签名——预置字段名仍是未核实假设。
+- **前端**：求职参考「按来源补数据」面板（来源勾选+逐来源结果+完成后重算）；横评「补数据来源」选择（批量在启动时定格来源名单、对每家分别调用）；设置页重写（最近执行摘要+高级请求格式/映射编辑器）；企查查/天眼查任务名区分「公开网页」vs「付费 API」；付费勾选**单次消费**（操作启动即清除，批量用快照跨公司、下次不沿用——防重复计费）；切页不取消已提交队列（只停界面更新）；报告先发布、历史读取失败单独提示不遮挡。
+- **踩坑**：① `main.py` 模块级 `app=create_app()` 使 pytest import 即初始化生产 .data——新 `tests/conftest.py` 在任何测试模块导入前把 JOBSCOPE_DATA_DIR 指到临时目录（会话结束清理）；② styles.css 混改同步继续外科插入（渠道编辑器并发块不带走）；③ rebase 撞上并发 `8a309f4`（浏览器自动拉起，App.tsx 4 行）——干净自动合并，编译+双方功能标志核查后 ff。
+- **测试**：后端全量 **710 passed**（运行副本）+ 工作树针对性 135 passed；前端 11 个内存回归场景（卸载续跑/付费单次/批量快照/历史失败不遮报告）+ 双处 tsc/build；8766 隔离 UI 验收（本地 mock HTTP：自定义认证头/空前缀/company_param/字段映射实际发请求并落 1 条可溯源信号、partial 逐字段说明、401 失败不阻断其余来源、付费勾选自动清除、盘点反馈+自动重算）。零外部付费请求、零生产数据写入（fixture 用系统临时目录）。
+- 发布仓 JobScope `314d69b`（rebase 后 `d3f3463`）已推送，feat 分支与工作树已删。**真实 GSXT/厂商接口的协议级验收仍欠**：需真实账号人工过验证后才能确认解析假设；`ready=true` 只代表可调用，不代表已验证连通。运行副本 main.py/api.ts 的渠道元数据并发线仍在（勿扫入发布仓，本次已外科排除）；8765 需重启加载新后端与 dist。
