@@ -494,3 +494,13 @@ npm run build                                          # 通过
 - **并发手术**：运行副本有「渠道模型元数据」未交付并发线（channels.py 的 MODEL_METADATA、ModelSettings 渠道编辑器 step 化改版、api.ts 的 Channel.note/ModelMetadata 类型、styles.css 大段渠道编辑样式）——整 cp 会把引用不存在字段的半成品带进 main（JobScope 侧 test_channels 立红）。处置：main.py 两处外来 hunk（MODEL_METADATA import、from exc）回退成 main 版；ModelSettings.tsx/styles.css/api.ts 三文件 `git checkout main --` 恢复后重放本次小改动。channels.py 本身不带（并发会话交付责任）。
 - **验证**：运行副本与 JobScope 两边后端全量 **638 passed**；前端双仓 build 通过；8766 新实例实测：evidence 裁剪（50 条仅 1 条截断）、text_hit 命中窗口、`/api/evidence/{id}` 全文、compare companies 模式 0.05s、details/status 0.03s、research index 稳态 `updated=0` 直读、conversations SQL 化 preview 正常；Playwright 冒烟 8 项（资料库列表/无空态误报/截断证据展开取回全文 605 字符/渠道区不误报空/横评页/任务表/岗位列表）通过。
 - 发布仓库 `c25f78e` 经 `feat/loading-and-perf` 合入 `13e188d` 已推送；feat 分支已删。8765 当前实例（Miniconda，23:29 起）恰已加载新代码 + 新 dist，无需再重启。
+
+## 2026-11-13 补充：求职参考操作按钮改浅白文案 + 悬浮说明
+
+用户反馈：「用已有材料算覆盖度」「从材料里抽取信号」两个按钮是底层术语，用户只认功能。
+
+- **改名**：覆盖度 → 「盘点已有资料」（用已存岗位/材料本地算一遍，报告哪些维度有依据、哪些缺）；抽取 → 「提取资料数字」（从补充的公告资料里读出明确数字补进打分依据）。缺口行的快捷按钮（原「本地重算」「从材料抽取」）同步改成同一套名。
+- **悬浮提示**：新增 `ACTION_INFO`（name+tip）统一表，底部两按钮与缺口行按钮共用同一份 `title`；「补资料」也补了说明。沿用项目原生 title 惯例（同 CompanyCompare.tsx）。
+- **并发注意**：运行副本 App.tsx 含并发会话未交付的「简历工坊」（ResumeWorkshop）半成品——该文件只能外科式 sed 打标签一行，勿整 cp。
+- **验证**：运行副本 tsc + build 通过、dist bundle 含新文案且旧文案清零；发布仓同 build 通过。
+- 发布仓库 `a250fd1` 经 `feat/reference-button-labels` 合入 `f80b24c` 已推送；feat 分支已删。8765 伺服 frontend/dist 静态文件，**无需重启，浏览器硬刷新**即见新文案。
